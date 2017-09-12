@@ -18,6 +18,7 @@
 #include <linux/sched.h>
 #include <linux/uidgid.h>
 #include <linux/filter.h>
+#include <linux/pid_namespace.h>
 
 /* If kernel subsystem is allowing eBPF programs to call this function,
  * inside its own verifier_ops->get_func_proto() callback it should return
@@ -174,6 +175,54 @@ err_clear:
 
 const struct bpf_func_proto bpf_get_current_comm_proto = {
 	.func		= bpf_get_current_comm,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg2_type	= ARG_CONST_SIZE,
+};
+
+BPF_CALL_2(bpf_get_current_ns_info, void *, buf, u32, size)
+{
+
+	if (!buf)
+		return -EINVAL;
+
+	struct task_struct *ts = current;
+	struct task_struct *ns_task = NULL;
+	const struct cred  *cred = NULL;
+        pid_t pid = 0;
+
+	if (unlikely(!ts))
+		return -EINVAL;
+
+	((struct bpf_current_ns_info*)buf)->ns_id =
+		ts->nsproxy->pid_ns_for_children->ns.inum;
+
+	pid = task_pid_nr_ns(ts, ts->nsproxy->pid_ns_for_children);
+
+	if (!pid)
+		return -EINVAL;
+	
+	ns_task = find_task_by_pid_ns(pid, ts->nsproxy->pid_ns_for_children);
+
+	if (unlikely(!ns_task))
+		return -EINVAL;
+
+	((struct bpf_current_ns_info*)buf)->tgid = ns_task->tgid;
+
+	cred = get_task_cred(ns_task);
+
+	if (unlikely(!cred))
+		return -EINVAL;
+
+	((struct bpf_current_ns_info*)buf)->gid = cred->gid.val;
+
+	return 0;
+}
+
+
+const struct bpf_func_proto bpf_get_current_ns_info_proto = {
+	.func		= bpf_get_current_ns_info,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,

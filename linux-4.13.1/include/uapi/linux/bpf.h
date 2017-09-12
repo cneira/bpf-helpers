@@ -539,6 +539,15 @@ union bpf_attr {
  *     @mode: operation mode (enum bpf_adj_room_mode)
  *     @flags: reserved for future use
  *     Return: 0 on success or negative error code
+ *
+ * int bpf_get_current_ns_info(void *buf, int size_of_buf)
+ *     stores the following  namespace data into 
+ *     bpf_current_ns_info struct:
+ *     namespace id
+ *     tgid inside namespace
+ *     gid  inside namespace
+ *     Return: 0 on success or negative error
+ *
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -591,7 +600,9 @@ union bpf_attr {
 	FN(get_socket_uid),		\
 	FN(set_hash),			\
 	FN(setsockopt),			\
-	FN(skb_adjust_room),
+	FN(skb_adjust_room),            \
+	FN(get_current_ns_info),
+
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
